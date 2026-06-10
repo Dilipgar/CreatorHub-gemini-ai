@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
@@ -18,7 +19,7 @@ sealed class UserSessionState {
 }
 
 class CreatorHubViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository: CreatorHubRepository
+    private val repository: CreatorHubRepository = CreatorHubRepository(AppDatabase.getDatabase(application))
     private var firebaseAuth: FirebaseAuth
     private var firestore: FirebaseFirestore
     private var isLocalDemoMode = true
@@ -33,7 +34,41 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
     var activeChatSessionId = MutableStateFlow<Int?>(null)
         private set
 
+    var selectedAffiliateOfferId = MutableStateFlow<Int?>(null)
+        private set
+
+    val selectedAffiliateOffer: StateFlow<AffiliateOfferEntity?> = selectedAffiliateOfferId
+        .flatMapLatest { id ->
+            if (id != null) repository.getAffiliateOffer(id) else flowOf(null)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val allAffiliateOffers: StateFlow<List<AffiliateOfferEntity>> = repository.affiliateOffers
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val affiliateEarnings: StateFlow<List<AffiliateEarningEntity>> = repository.affiliateEarnings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    var affiliateSearchQuery = MutableStateFlow("")
+        private set
+
+    var affiliateCategoryFilter = MutableStateFlow("All") // "All", "SaaS & Hosting", "Design & Creative", "E-commerce & Retail", "Education & Self-Care"
+        private set
+
+    val filteredAffiliateOffers: StateFlow<List<AffiliateOfferEntity>> = combine(
+        allAffiliateOffers,
+        affiliateSearchQuery,
+        affiliateCategoryFilter
+    ) { offers, query, cat ->
+        offers.filter { offer ->
+            val matchesQuery = offer.title.contains(query, ignoreCase = true) ||
+                    offer.brandName.contains(query, ignoreCase = true)
+            val matchesCategory = if (cat == "All") true else offer.category == cat
+            matchesQuery && matchesCategory
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val userSessionState = MutableStateFlow<UserSessionState>(UserSessionState.Check)
+    val selectedRole = MutableStateFlow<String>("creator") // "creator" or "brand"
 
     var authError = MutableStateFlow<String?>(null)
         private set
@@ -45,6 +80,7 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
     val firestoreOpportunities = MutableStateFlow<List<OpportunityEntity>>(emptyList())
     val firestoreDeals = MutableStateFlow<List<DealEntity>>(emptyList())
     val userProfile = MutableStateFlow<UserProfile?>(null)
+    val notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
 
     // Search and tab filters
     var searchQuery = MutableStateFlow("")
@@ -76,13 +112,24 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val database = AppDatabase.getDatabase(application)
-        repository = CreatorHubRepository(database)
 
         if (isLocalDemoMode) {
             syncLocalDataToStateFlows()
+            userProfile.value = loadProfileLocally("local_demo_uid", "dilip.goswami96@gmail.com")
+            notifications.value = listOf(
+                NotificationItem(1, "Welcome to CreatorHub!", "Complete your profile edit sprint to start landing verified escrow deals.", "10 mins ago", "system", false),
+                NotificationItem(2, "Escrow Secured", "boAt Lifestyle reviewed your portfolio and locked ₹50,000 in safe escrow.", "1 hour ago", "deal", false),
+                NotificationItem(3, "Campaign Trending", "GoPro Action Shorts is seeing high application rates in Travel category.", "1 day ago", "campaign", false)
+            )
             userSessionState.value = UserSessionState.Unauthenticated
-            if (currentScreen.value != "signup" && currentScreen.value != "forgot_password") {
-                currentScreen.value = "login"
+            val prefs = application.getSharedPreferences("creator_hub_profile", Context.MODE_PRIVATE)
+            val hasSeenOnboarding = prefs.getBoolean("seen_onboarding", false)
+            if (!hasSeenOnboarding) {
+                currentScreen.value = "onboarding"
+            } else {
+                if (currentScreen.value != "signup" && currentScreen.value != "forgot_password") {
+                    currentScreen.value = "login"
+                }
             }
         } else {
             // Sync opportunities immediately
@@ -129,14 +176,14 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    // Exposed Flows (Mapped directly to Firestore data!)
-    val allOpportunities: StateFlow<List<OpportunityEntity>> = firestoreOpportunities
+    // Exposed Flows (Mapped directly to repository for 100% reliable local stability & offline persistence!)
+    val allOpportunities: StateFlow<List<OpportunityEntity>> = repository.opportunities
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val chatSessions: StateFlow<List<ChatSessionEntity>> = repository.chatSessions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val activeDeals: StateFlow<List<DealEntity>> = firestoreDeals
+    val activeDeals: StateFlow<List<DealEntity>> = repository.activeDeals
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Filtered Opportunities based on Search Query & Tab
@@ -162,15 +209,15 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Stream for selected opportunity derived through Firestore opportunities
+    // Stream for selected opportunity derived through local repository opportunities
     val selectedOpportunity: StateFlow<OpportunityEntity?> = selectedOpportunityId
-        .combine(firestoreOpportunities) { id, ops ->
+        .combine(allOpportunities) { id, ops ->
             ops.find { it.id == id }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    // Stream for selected opportunity's deal state derived through Firestore deals (applied or in progress)
+    // Stream for selected opportunity's deal state derived through local repository deals (applied or in progress)
     val selectedOpportunityDeal: StateFlow<DealEntity?> = selectedOpportunityId
-        .combine(firestoreDeals) { id, deals ->
+        .combine(activeDeals) { id, deals ->
             deals.find { it.opportunityId == id }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -188,6 +235,81 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
     fun selectOpportunity(id: Int) {
         selectedOpportunityId.value = id
         navigateTo("details")
+    }
+
+    fun selectAffiliateOffer(id: Int) {
+        selectedAffiliateOfferId.value = id
+        navigateTo("affiliate_details")
+    }
+
+    fun setAffiliateSearchQuery(query: String) {
+        affiliateSearchQuery.value = query
+    }
+
+    fun setAffiliateCategoryFilter(category: String) {
+        affiliateCategoryFilter.value = category
+    }
+
+    fun toggleSaveAffiliateOffer(id: Int) {
+        viewModelScope.launch {
+            repository.toggleSaveAffiliateOffer(id)
+        }
+    }
+
+    fun applyToAffiliateOffer(id: Int, brandName: String) {
+        viewModelScope.launch {
+            val handleClean = userProfile.value?.handle?.removePrefix("@") ?: "ankitclicks"
+            val brandClean = brandName.lowercase().replace(" ", "")
+            val trackingLink = "https://creatorhub.link/ref/$handleClean/$brandClean"
+            repository.applyToAffiliateOffer(id, trackingLink)
+
+            // Start an interactive chat introduction with the affiliate support manager
+            val welcomeMsg = "Congratulations! Your affiliate partner request for $brandName has been auto-approved. Your verified status: ELITE PARTNER. Use your custom tracking link inside your bio and posts to maximize commission earnings immediately."
+            repository.startChatSession("$brandName Affiliate", "YouTube", welcomeMsg)
+        }
+    }
+
+    fun simulateClickOnAffiliate(offerId: Int) {
+        viewModelScope.launch {
+            val earningsList = affiliateEarnings.value
+            val activeEarning = earningsList.find { it.offerId == offerId }
+            if (activeEarning != null) {
+                val nextClicks = activeEarning.clicksCount + 1
+                val isConversion = (1..100).random() <= 8 // 8% conversion rate
+                
+                var nextConversions = activeEarning.conversionsCount
+                var nextSales = activeEarning.totalSales
+                var nextEarnings = activeEarning.earningsAmount
+                
+                if (isConversion) {
+                    nextConversions += 1
+                    
+                    // Sales amount generated ranges between 1000 and 5000
+                    val saleVal = (1000..5000).random().toDouble()
+                    nextSales += saleVal
+                    
+                    // Earned commission based on rate or flat
+                    val commissionRateText = allAffiliateOffers.value.find { it.id == offerId }?.commissionRate ?: "10%"
+                    val computedEarning = if (commissionRateText.contains("₹")) {
+                        commissionRateText.filter { it.isDigit() }.toDoubleOrNull() ?: 500.0
+                    } else {
+                        val percentage = commissionRateText.filter { it.isDigit() }.toDoubleOrNull() ?: 10.0
+                        (saleVal * percentage) / 100.0
+                    }
+                    nextEarnings += computedEarning
+                }
+
+                repository.insertAffiliateEarning(
+                    activeEarning.copy(
+                        clicksCount = nextClicks,
+                        conversionsCount = nextConversions,
+                        totalSales = nextSales,
+                        earningsAmount = nextEarnings,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
     }
 
     fun selectChatSession(id: Int) {
@@ -261,10 +383,24 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
             repository.updateDealStatus(deal.id, nextStatus)
 
             if (!isLocalDemoMode) {
-                // Update in Firestore!
-                firestore.collection("deals").document(deal.id.toString())
-                    .update("status", nextStatus)
+                try {
+                    // Update in Firestore!
+                    firestore.collection("deals").document(deal.id.toString())
+                        .update("status", nextStatus)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
+
+            // Post a custom deal escrow milestone notification
+            val newNotification = NotificationItem(
+                id = (notifications.value.maxOfOrNull { it.id } ?: 0) + 1,
+                title = "Milestone: $nextStatus",
+                body = "Your escrow contract with ${deal.brandName} is now in status '$nextStatus'.",
+                timestamp = "Just now",
+                type = "deal"
+            )
+            notifications.value = listOf(newNotification) + notifications.value
         }
     }
 
@@ -315,7 +451,7 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
         aboutCampaign: String
     ) {
         viewModelScope.launch {
-            val newId = (firestoreOpportunities.value.maxOfOrNull { it.id } ?: 0) + 1
+            val newId = (allOpportunities.value.maxOfOrNull { it.id } ?: 0) + 1
             val op = OpportunityEntity(
                 id = newId,
                 title = title,
@@ -331,25 +467,39 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
             repository.insertOpportunity(op)
 
             if (!isLocalDemoMode) {
-                // Save to Firestore!
-                val docData = mapOf(
-                    "id" to op.id,
-                    "title" to op.title,
-                    "brandName" to op.brandName,
-                    "budgetRange" to op.budgetRange,
-                    "type" to op.type,
-                    "platform" to op.platform,
-                    "location" to op.location,
-                    "durationText" to op.durationText,
-                    "requirements" to op.requirements,
-                    "aboutCampaign" to op.aboutCampaign,
-                    "isSaved" to op.isSaved,
-                    "commissionRate" to op.commissionRate,
-                    "difficultyLevel" to op.difficultyLevel,
-                    "category" to op.category
-                )
-                firestore.collection("opportunities").document(op.id.toString()).set(docData)
+                try {
+                    // Save to Firestore!
+                    val docData = mapOf(
+                        "id" to op.id,
+                        "title" to op.title,
+                        "brandName" to op.brandName,
+                        "budgetRange" to op.budgetRange,
+                        "type" to op.type,
+                        "platform" to op.platform,
+                        "location" to op.location,
+                        "durationText" to op.durationText,
+                        "requirements" to op.requirements,
+                        "aboutCampaign" to op.aboutCampaign,
+                        "isSaved" to op.isSaved,
+                        "commissionRate" to op.commissionRate,
+                        "difficultyLevel" to op.difficultyLevel,
+                        "category" to op.category
+                    )
+                    firestore.collection("opportunities").document(op.id.toString()).set(docData)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
+
+            // Post a system notification about campaign publication
+            val newNotification = NotificationItem(
+                id = (notifications.value.maxOfOrNull { it.id } ?: 0) + 1,
+                title = "Campaign Published Successful!",
+                body = "Your custom campaign '$title' for $brandName was successfully published.",
+                timestamp = "Just now",
+                type = "campaign"
+            )
+            notifications.value = listOf(newNotification) + notifications.value
 
             navigateTo("opportunities")
         }
@@ -375,6 +525,9 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
                         val heldInEscrow = document.getString("heldInEscrow") ?: "₹75,000"
                         val activeContractsCount = document.getLong("activeContractsCount")?.toInt() ?: 8
 
+                        val roleVal = document.getString("role") ?: "creator"
+                        val industryVal = document.getString("industry") ?: ""
+
                         val profile = UserProfile(
                             uid = uid,
                             email = email,
@@ -390,9 +543,19 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
                             trustRating = trustRating,
                             totalSecuredEarnings = totalSecuredEarnings,
                             heldInEscrow = heldInEscrow,
-                            activeContractsCount = activeContractsCount
+                            activeContractsCount = activeContractsCount,
+                            role = roleVal,
+                            industry = industryVal
                         )
                         userProfile.value = profile
+                        selectedRole.value = roleVal
+                        
+                        // Role based redirect on auth success
+                        if (roleVal == "brand") {
+                            navigateTo("campaign_management")
+                        } else {
+                            navigateTo("opportunities")
+                        }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         userProfile.value = UserProfile(uid = uid, email = email)
@@ -415,12 +578,100 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
             }
     }
 
+    fun saveProfileLocally(profile: UserProfile) {
+        val prefs = getApplication<Application>().getSharedPreferences("creator_hub_profile", Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putString("uid", profile.uid)
+            putString("email", profile.email)
+            putString("name", profile.name)
+            putString("handle", profile.handle)
+            putString("location", profile.location)
+            putString("bio", profile.bio)
+            putString("instagramFollowers", profile.instagramFollowers)
+            putString("youtubeSubscribers", profile.youtubeSubscribers)
+            putString("twitterFollowers", profile.twitterFollowers)
+            putInt("creatorScore", profile.creatorScore)
+            putInt("trustRating", profile.trustRating)
+            putString("totalSecuredEarnings", profile.totalSecuredEarnings)
+            putString("heldInEscrow", profile.heldInEscrow)
+            putInt("activeContractsCount", profile.activeContractsCount)
+            
+            // Custom profile sprint fields
+            putString("profilePhoto", profile.profilePhoto)
+            putString("instagramUrl", profile.instagramUrl)
+            putString("youtubeUrl", profile.youtubeUrl)
+            putString("website", profile.website)
+            putString("categories", profile.categories)
+            putString("followers", profile.followers)
+            putString("portfolioLinks", profile.portfolioLinks)
+            putString("role", profile.role)
+            putString("industry", profile.industry)
+            apply()
+        }
+    }
+
+    fun loadProfileLocally(uid: String, email: String): UserProfile {
+        val prefs = getApplication<Application>().getSharedPreferences("creator_hub_profile", Context.MODE_PRIVATE)
+        if (!prefs.contains("name")) {
+            return UserProfile(
+                uid = uid,
+                email = email,
+                name = "Ankit Photographer",
+                handle = "@ankitclicks",
+                location = "Mumbai, IN",
+                role = prefs.getString("role", "creator") ?: "creator",
+                industry = prefs.getString("industry", "") ?: ""
+            )
+        }
+        return UserProfile(
+            uid = prefs.getString("uid", uid) ?: uid,
+            email = prefs.getString("email", email) ?: email,
+            name = prefs.getString("name", "Ankit Photographer") ?: "Ankit Photographer",
+            handle = prefs.getString("handle", "@ankitclicks") ?: "@ankitclicks",
+            location = prefs.getString("location", "Mumbai, IN") ?: "Mumbai, IN",
+            bio = prefs.getString("bio", "") ?: "",
+            instagramFollowers = prefs.getString("instagramFollowers", "125K") ?: "125K",
+            youtubeSubscribers = prefs.getString("youtubeSubscribers", "92K") ?: "92K",
+            twitterFollowers = prefs.getString("twitterFollowers", "14K") ?: "14K",
+            creatorScore = prefs.getInt("creatorScore", 94),
+            trustRating = prefs.getInt("trustRating", 98),
+            totalSecuredEarnings = prefs.getString("totalSecuredEarnings", "₹4,85,000") ?: "₹4,85,000",
+            heldInEscrow = prefs.getString("heldInEscrow", "₹75,000") ?: "₹75,000",
+            activeContractsCount = prefs.getInt("activeContractsCount", 8),
+            
+            profilePhoto = prefs.getString("profilePhoto", "") ?: "",
+            instagramUrl = prefs.getString("instagramUrl", "https://instagram.com/ankitclicks") ?: "https://instagram.com/ankitclicks",
+            youtubeUrl = prefs.getString("youtubeUrl", "https://youtube.com/c/ankitvlogs") ?: "https://youtube.com/c/ankitvlogs",
+            website = prefs.getString("website", "https://ankitclicks.com") ?: "https://ankitclicks.com",
+            categories = prefs.getString("categories", "Photography, Travel, Videography") ?: "Photography, Travel, Videography",
+            followers = prefs.getString("followers", "231K") ?: "231K",
+            portfolioLinks = prefs.getString("portfolioLinks", "https://behance.net/ankitclicks, https://unsplash.com/@ankitclicks") ?: "https://behance.net/ankitclicks, https://unsplash.com/@ankitclicks",
+            role = prefs.getString("role", "creator") ?: "creator",
+            industry = prefs.getString("industry", "") ?: ""
+        )
+    }
+
     fun updateUserProfile(profile: UserProfile) {
         val uid = profile.uid.takeIf { it.isNotEmpty() } ?: return
         userProfile.value = profile
+        saveProfileLocally(profile)
         if (!isLocalDemoMode) {
-            firestore.collection("users").document(uid).set(profile)
+            try {
+                firestore.collection("users").document(uid).set(profile)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
+
+        // Post a notification about profile update
+        val newNotification = NotificationItem(
+            id = (notifications.value.maxOfOrNull { it.id } ?: 0) + 1,
+            title = "Profile Synced Successful!",
+            body = "Your professional portal was synced and saved locally.",
+            timestamp = "Just now",
+            type = "profile"
+        )
+        notifications.value = listOf(newNotification) + notifications.value
     }
 
     // --- FIRESTORE SYNC & SEED METHODS ---
@@ -712,13 +963,21 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
         authError.value = null
     }
 
-    fun login(email: String, password: String) {
+    fun setOnboardingSeen() {
+        val prefs = getApplication<Application>().getSharedPreferences("creator_hub_profile", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("seen_onboarding", true).apply()
+        navigateTo("welcome")
+    }
+
+    fun login(email: String, password: String, role: String) {
         if (email.isBlank() || password.isBlank()) {
             authError.value = "Email and Password cannot be empty"
             return
         }
         authLoading.value = true
         authError.value = null
+
+        selectedRole.value = role
 
         if (isLocalDemoMode) {
             viewModelScope.launch {
@@ -728,15 +987,16 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
                     email = email.trim(),
                     uid = "local_demo_uid"
                 )
-                // Initialize default profile locally
-                userProfile.value = UserProfile(
-                    uid = "local_demo_uid",
-                    email = email.trim(),
-                    name = "Ankit Photographer",
-                    handle = "@" + email.substringBefore("@")
-                )
+                // Initialize custom profile sprint fields locally
+                val profile = loadProfileLocally("local_demo_uid", email.trim()).copy(role = role)
+                userProfile.value = profile
+                saveProfileLocally(profile)
                 syncLocalDataToStateFlows()
-                navigateTo("opportunities")
+                if (role == "brand") {
+                    navigateTo("campaign_management")
+                } else {
+                    navigateTo("opportunities")
+                }
             }
             return
         }
@@ -745,16 +1005,22 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
             .addOnCompleteListener { task ->
                 authLoading.value = false
                 if (task.isSuccessful) {
-                    navigateTo("opportunities")
+                    val uid = task.result.user?.uid ?: ""
+                    fetchOrCreateUserProfile(uid, email.trim())
                 } else {
                     authError.value = task.exception?.localizedMessage ?: "Login failed"
                 }
             }
     }
 
-    fun signup(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) {
-            authError.value = "Email and Password cannot be empty"
+    // Legacy support wrapper
+    fun login(email: String, password: String) {
+        login(email, password, "creator")
+    }
+
+    fun signupCreator(name: String, email: String, password: String, instagram: String, youtube: String, category: String) {
+        if (email.isBlank() || password.isBlank() || name.isBlank()) {
+            authError.value = "Name, Email, and Password cannot be empty"
             return
         }
         if (password.length < 6) {
@@ -764,6 +1030,18 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
         authLoading.value = true
         authError.value = null
 
+        selectedRole.value = "creator"
+
+        val profile = UserProfile(
+            uid = "local_demo_uid",
+            email = email.trim(),
+            name = name.trim(),
+            instagramFollowers = instagram,
+            youtubeSubscribers = youtube,
+            categories = category,
+            role = "creator"
+        )
+
         if (isLocalDemoMode) {
             viewModelScope.launch {
                 kotlinx.coroutines.delay(800)
@@ -772,13 +1050,8 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
                     email = email.trim(),
                     uid = "local_demo_uid"
                 )
-                // Initialize default profile locally
-                userProfile.value = UserProfile(
-                    uid = "local_demo_uid",
-                    email = email.trim(),
-                    name = "Ankit Photographer",
-                    handle = "@" + email.substringBefore("@")
-                )
+                userProfile.value = profile
+                saveProfileLocally(profile)
                 syncLocalDataToStateFlows()
                 navigateTo("opportunities")
             }
@@ -789,11 +1062,82 @@ class CreatorHubViewModel(application: Application) : AndroidViewModel(applicati
             .addOnCompleteListener { task ->
                 authLoading.value = false
                 if (task.isSuccessful) {
+                    val uid = task.result.user?.uid ?: ""
+                    val updatedProfile = profile.copy(uid = uid)
+                    userProfile.value = updatedProfile
+                    saveProfileLocally(updatedProfile)
+                    firestore.collection("users").document(uid).set(updatedProfile)
                     navigateTo("opportunities")
                 } else {
                     authError.value = task.exception?.localizedMessage ?: "Signup failed"
                 }
             }
+    }
+
+    fun signupBrand(companyName: String, email: String, password: String, website: String, industry: String) {
+        if (email.isBlank() || password.isBlank() || companyName.isBlank()) {
+            authError.value = "Company Name, Email, and Password cannot be empty"
+            return
+        }
+        if (password.length < 6) {
+            authError.value = "Password should be at least 6 characters"
+            return
+        }
+        authLoading.value = true
+        authError.value = null
+
+        selectedRole.value = "brand"
+
+        val profile = UserProfile(
+            uid = "local_demo_uid",
+            email = email.trim(),
+            name = companyName.trim(),
+            website = website.trim(),
+            industry = industry,
+            role = "brand"
+        )
+
+        if (isLocalDemoMode) {
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(800)
+                authLoading.value = false
+                userSessionState.value = UserSessionState.Authenticated(
+                    email = email.trim(),
+                    uid = "local_demo_uid"
+                )
+                userProfile.value = profile
+                saveProfileLocally(profile)
+                syncLocalDataToStateFlows()
+                navigateTo("campaign_management")
+            }
+            return
+        }
+
+        firebaseAuth.createUserWithEmailAndPassword(email.trim(), password)
+            .addOnCompleteListener { task ->
+                authLoading.value = false
+                if (task.isSuccessful) {
+                    val uid = task.result.user?.uid ?: ""
+                    val updatedProfile = profile.copy(uid = uid)
+                    userProfile.value = updatedProfile
+                    saveProfileLocally(updatedProfile)
+                    firestore.collection("users").document(uid).set(updatedProfile)
+                    navigateTo("campaign_management")
+                } else {
+                    authError.value = task.exception?.localizedMessage ?: "Signup failed"
+                }
+            }
+    }
+
+    fun signup(email: String, password: String) {
+        signupCreator(
+            name = "Creator User",
+            email = email,
+            password = password,
+            instagram = "10K",
+            youtube = "5K",
+            category = "General"
+        )
     }
 
     fun forgotPassword(email: String) {

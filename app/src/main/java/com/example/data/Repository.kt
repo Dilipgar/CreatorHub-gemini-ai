@@ -84,4 +84,53 @@ class CreatorHubRepository(private val db: AppDatabase) {
     suspend fun updateDealStatus(dealId: Int, status: String) {
         db.dealDao().updateDealStatus(dealId, status, System.currentTimeMillis())
     }
+
+    // --- Affiliate Marketplace ---
+    val affiliateOffers: Flow<List<AffiliateOfferEntity>> = db.affiliateDao().getAllOffers()
+    val affiliateEarnings: Flow<List<AffiliateEarningEntity>> = db.affiliateDao().getAllEarnings()
+
+    fun getAffiliateOffer(id: Int): Flow<AffiliateOfferEntity?> {
+        return db.affiliateDao().getOfferById(id)
+    }
+
+    suspend fun updateAffiliateOffer(offer: AffiliateOfferEntity) {
+        db.affiliateDao().updateOffer(offer)
+    }
+
+    suspend fun applyToAffiliateOffer(id: Int, trackingLink: String) {
+        val offer = db.affiliateDao().getOfferByIdDirect(id)
+        if (offer != null) {
+            db.affiliateDao().updateOffer(
+                offer.copy(
+                    isApplied = true,
+                    affiliateLink = trackingLink
+                )
+            )
+            // Register an initial earning tracker with 0 counts for professional stats display
+            db.affiliateDao().insertEarning(
+                AffiliateEarningEntity(
+                    offerId = id,
+                    offerTitle = offer.title,
+                    brandName = offer.brandName,
+                    clicksCount = 0,
+                    conversionsCount = 0,
+                    totalSales = 0.0,
+                    earningsAmount = 0.0,
+                    status = "Pending",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    suspend fun toggleSaveAffiliateOffer(id: Int) {
+        val offer = db.affiliateDao().getOfferByIdDirect(id)
+        if (offer != null) {
+            db.affiliateDao().updateOffer(offer.copy(isSaved = !offer.isSaved))
+        }
+    }
+
+    suspend fun insertAffiliateEarning(earning: AffiliateEarningEntity) {
+        db.affiliateDao().insertEarning(earning)
+    }
 }

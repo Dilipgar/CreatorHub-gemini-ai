@@ -47,6 +47,9 @@ import com.example.data.DealEntity
 import com.example.data.MessageEntity
 import com.example.data.OpportunityEntity
 import com.example.data.UserProfile
+import com.example.data.NotificationItem
+import coil.compose.AsyncImage
+import androidx.compose.ui.platform.LocalUriHandler
 
 // --- Brand Theme Colors matching the Premium Startup-Quality Gradient theme ---
 val DarkNavy = Color(0xFFF8FAFC) // Premium slate light background
@@ -128,17 +131,29 @@ fun AppNavigation(viewModel: CreatorHubViewModel) {
     ) {
         when (currentScreen) {
             "onboarding" -> OnboardingScreen(viewModel)
+            "welcome" -> WelcomeScreen(viewModel)
             "login" -> LoginScreen(viewModel)
             "signup" -> SignupScreen(viewModel)
+            "signup_creator" -> SignupCreatorScreen(viewModel)
+            "signup_brand" -> SignupBrandScreen(viewModel)
             "forgot_password" -> ForgotPasswordScreen(viewModel)
             "opportunities" -> MainAppScaffold(viewModel, "opportunities") { OpportunitiesFeedScreen(viewModel) }
             "details" -> MainAppScaffold(viewModel, "opportunities") { OpportunityDetailScreen(viewModel) }
             "leaderboard" -> MainAppScaffold(viewModel, "leaderboard") { LeaderboardScreen(viewModel) }
+            "affiliates" -> MainAppScaffold(viewModel, "affiliates") { AffiliateMarketplaceScreen(viewModel) }
+            "affiliate_details" -> MainAppScaffold(viewModel, "affiliates") { AffiliateDetailScreen(viewModel) }
             "messages" -> MainAppScaffold(viewModel, "messages") { ChatListScreen(viewModel) }
             "chat_detail" -> MainAppScaffold(viewModel, "messages") { ChatDetailScreen(viewModel) }
             "create" -> MainAppScaffold(viewModel, "create") { CreateOpportunityScreen(viewModel) }
             "deals" -> MainAppScaffold(viewModel, "deals") { DealStatusScreen(viewModel) }
             "profile" -> MainAppScaffold(viewModel, "profile") { CreatorProfileScreen(viewModel) }
+            "notifications" -> MainAppScaffold(viewModel, "opportunities") { NotificationCenterScreen(viewModel) }
+            
+            // Brand-specific screens
+            "campaign_management" -> MainAppScaffold(viewModel, "campaign_management") { CampaignManagementScreen(viewModel) }
+            "applicant_management" -> MainAppScaffold(viewModel, "applicant_management") { ApplicantManagementScreen(viewModel) }
+            "creator_discovery" -> MainAppScaffold(viewModel, "creator_discovery") { CreatorDiscoveryScreen(viewModel) }
+            "brand_profile" -> MainAppScaffold(viewModel, "brand_profile") { BrandProfileScreen(viewModel) }
         }
     }
 }
@@ -149,6 +164,8 @@ fun MainAppScaffold(
     activeTab: String,
     content: @Composable () -> Unit
 ) {
+    val selectedRole by viewModel.selectedRole.collectAsStateWithLifecycle()
+
     Scaffold(
         bottomBar = {
             NavigationBar(
@@ -157,94 +174,125 @@ fun MainAppScaffold(
                 tonalElevation = 8.dp,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                NavigationBarItem(
-                    selected = activeTab == "opportunities",
-                    onClick = { viewModel.navigateTo("opportunities") },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                    label = { Text("Feed", style = MaterialTheme.typography.labelSmall) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ElectricCyan,
-                        selectedTextColor = ElectricCyan,
-                        unselectedIconColor = AppGray,
-                        unselectedTextColor = AppGray,
-                        indicatorColor = CardNavy
-                    ),
-                    modifier = Modifier.testTag("nav_opportunities")
-                )
-                NavigationBarItem(
-                    selected = activeTab == "leaderboard",
-                    onClick = { viewModel.navigateTo("leaderboard") },
-                    icon = { Icon(Icons.Default.Leaderboard, contentDescription = "Leaderboard") },
-                    label = { Text("Leaders", style = MaterialTheme.typography.labelSmall) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ElectricCyan,
-                        selectedTextColor = ElectricCyan,
-                        unselectedIconColor = AppGray,
-                        unselectedTextColor = AppGray,
-                        indicatorColor = CardNavy
-                    ),
-                    modifier = Modifier.testTag("nav_leaderboard")
-                )
-                NavigationBarItem(
-                    selected = activeTab == "messages",
-                    onClick = { viewModel.navigateTo("messages") },
-                    icon = { Icon(Icons.Default.Message, contentDescription = "Messages") },
-                    label = { Text("Chats", style = MaterialTheme.typography.labelSmall) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ElectricCyan,
-                        selectedTextColor = ElectricCyan,
-                        unselectedIconColor = AppGray,
-                        unselectedTextColor = AppGray,
-                        indicatorColor = CardNavy
-                    ),
-                    modifier = Modifier.testTag("nav_messages")
-                )
-                NavigationBarItem(
-                    selected = activeTab == "create",
-                    onClick = { viewModel.navigateTo("create") },
-                    icon = { Icon(Icons.Default.AddCircle, contentDescription = "Create", tint = ElectricCyan, modifier = Modifier.size(24.dp)) },
-                    label = { Text("Post", style = MaterialTheme.typography.labelSmall, color = ElectricCyan) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ElectricCyan,
-                        selectedTextColor = ElectricCyan,
-                        unselectedIconColor = AppGray,
-                        unselectedTextColor = AppGray,
-                        indicatorColor = CardNavy
-                    ),
-                    modifier = Modifier.testTag("nav_create")
-                )
-                NavigationBarItem(
-                    selected = activeTab == "deals",
-                    onClick = { viewModel.navigateTo("deals") },
-                    icon = { Icon(Icons.Default.AttachMoney, contentDescription = "Deals") },
-                    label = { Text("Deals", style = MaterialTheme.typography.labelSmall) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ElectricCyan,
-                        selectedTextColor = ElectricCyan,
-                        unselectedIconColor = AppGray,
-                        unselectedTextColor = AppGray,
-                        indicatorColor = CardNavy
-                    ),
-                    modifier = Modifier.testTag("nav_deals")
-                )
-                NavigationBarItem(
-                    selected = activeTab == "profile",
-                    onClick = { viewModel.navigateTo("profile") },
-                    icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-                    label = { Text("Profile", style = MaterialTheme.typography.labelSmall) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ElectricCyan,
-                        selectedTextColor = ElectricCyan,
-                        unselectedIconColor = AppGray,
-                        unselectedTextColor = AppGray,
-                        indicatorColor = CardNavy
-                    ),
-                    modifier = Modifier.testTag("nav_profile")
-                )
+                if (selectedRole == "brand") {
+                    NavigationBarItem(
+                        selected = activeTab == "campaign_management",
+                        onClick = { viewModel.navigateTo("campaign_management") },
+                        icon = { Icon(Icons.Default.Campaign, contentDescription = "Campaigns") },
+                        label = { Text("Campaigns", style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = ElectricCyan,
+                            selectedTextColor = ElectricCyan,
+                            unselectedIconColor = AppGray,
+                            unselectedTextColor = AppGray,
+                            indicatorColor = CardNavy
+                        ),
+                        modifier = Modifier.testTag("nav_campaign_management")
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == "applicant_management",
+                        onClick = { viewModel.navigateTo("applicant_management") },
+                        icon = { Icon(Icons.Default.People, contentDescription = "Applicants") },
+                        label = { Text("Applicants", style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = ElectricCyan,
+                            selectedTextColor = ElectricCyan,
+                            unselectedIconColor = AppGray,
+                            unselectedTextColor = AppGray,
+                            indicatorColor = CardNavy
+                        ),
+                        modifier = Modifier.testTag("nav_applicant_management")
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == "creator_discovery",
+                        onClick = { viewModel.navigateTo("creator_discovery") },
+                        icon = { Icon(Icons.Default.Search, contentDescription = "Discover") },
+                        label = { Text("Discover", style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = ElectricCyan,
+                            selectedTextColor = ElectricCyan,
+                            unselectedIconColor = AppGray,
+                            unselectedTextColor = AppGray,
+                            indicatorColor = CardNavy
+                        ),
+                        modifier = Modifier.testTag("nav_creator_discovery")
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == "brand_profile",
+                        onClick = { viewModel.navigateTo("brand_profile") },
+                        icon = { Icon(Icons.Default.Business, contentDescription = "Brand Profile") },
+                        label = { Text("Profile", style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = ElectricCyan,
+                            selectedTextColor = ElectricCyan,
+                            unselectedIconColor = AppGray,
+                            unselectedTextColor = AppGray,
+                            indicatorColor = CardNavy
+                        ),
+                        modifier = Modifier.testTag("nav_brand_profile")
+                    )
+                } else {
+                    NavigationBarItem(
+                        selected = activeTab == "opportunities",
+                        onClick = { viewModel.navigateTo("opportunities") },
+                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                        label = { Text("Feed", style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = ElectricCyan,
+                            selectedTextColor = ElectricCyan,
+                            unselectedIconColor = AppGray,
+                            unselectedTextColor = AppGray,
+                            indicatorColor = CardNavy
+                        ),
+                        modifier = Modifier.testTag("nav_opportunities")
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == "affiliates",
+                        onClick = { viewModel.navigateTo("affiliates") },
+                        icon = { Icon(Icons.Default.Storefront, contentDescription = "Affiliate Marketplace") },
+                        label = { Text("Affiliates", style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = ElectricCyan,
+                            selectedTextColor = ElectricCyan,
+                            unselectedIconColor = AppGray,
+                            unselectedTextColor = AppGray,
+                            indicatorColor = CardNavy
+                        ),
+                        modifier = Modifier.testTag("nav_affiliates")
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == "deals",
+                        onClick = { viewModel.navigateTo("deals") },
+                        icon = { Icon(Icons.Default.AttachMoney, contentDescription = "Deals") },
+                        label = { Text("Deals", style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = ElectricCyan,
+                            selectedTextColor = ElectricCyan,
+                            unselectedIconColor = AppGray,
+                            unselectedTextColor = AppGray,
+                            indicatorColor = CardNavy
+                        ),
+                        modifier = Modifier.testTag("nav_deals")
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == "profile",
+                        onClick = { viewModel.navigateTo("profile") },
+                        icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                        label = { Text("Profile", style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = ElectricCyan,
+                            selectedTextColor = ElectricCyan,
+                            unselectedIconColor = AppGray,
+                            unselectedTextColor = AppGray,
+                            indicatorColor = CardNavy
+                        ),
+                        modifier = Modifier.testTag("nav_profile")
+                    )
+                }
             }
         },
         containerColor = DarkNavy,
-        contentWindowInsets = WindowInsets.safeDrawing
+        contentWindowInsets = WindowInsets.navigationBars
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -257,174 +305,218 @@ fun MainAppScaffold(
 }
 
 // --- SCREEN 1: ONBOARDING SCREEN ---
+data class OnboardingStep(
+    val title: String,
+    val subtitle: String,
+    val desc: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
 @Composable
 fun OnboardingScreen(viewModel: CreatorHubViewModel) {
-    val context = LocalContext.current
+    var step by remember { mutableStateOf(0) }
+    val steps = listOf(
+        OnboardingStep(
+            title = "Welcome to CreatorHub",
+            subtitle = "India's Verified Professional Network",
+            desc = "Connect securely with verified global brands, access premium campaigns, and safeguard your workflow within a closed, elite network.",
+            icon = Icons.Default.Handshake
+        ),
+        OnboardingStep(
+            title = "For Elite Creators",
+            subtitle = "Guaranteed Escrow Payouts",
+            desc = "Apply to high-funded briefs, secure contract amounts safely in escrow before you work, and unlock instant compliance payouts.",
+            icon = Icons.Default.Verified
+        ),
+        OnboardingStep(
+            title = "For High-Growth Brands",
+            subtitle = "Pristine Creator Discovery",
+            desc = "Post detailed campaign requirements, screen top-tier creator applicants, verify compliance scores, and manage contracts effortlessly.",
+            icon = Icons.Default.Business
+        )
+    )
+
+    val currentStep = steps[step]
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkNavy)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Spacer(modifier = Modifier.weight(0.4f))
-
-        // Premium Startup Logo and Wordmark
-        CreatorHubLogo(
-            iconSize = 64.dp,
-            fontSize = 32.sp,
-            showWordmark = true
-        )
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // Professional Connected Startup-Style Visual Illustration
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp)
-                .border(BorderStroke(1.dp, CardNavy), RoundedCornerShape(20.dp)),
-            colors = CardDefaults.cardColors(containerColor = SurfaceNavy),
-            shape = RoundedCornerShape(20.dp)
+        // Upper section: Skip option and logo
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            CreatorHubLogo(
+                iconSize = 32.dp,
+                fontSize = 18.sp,
+                showWordmark = true
+            )
+            
+            TextButton(
+                onClick = { viewModel.setOnboardingSeen() }
             ) {
-                // Connecting Hub Visual Drawing
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .background(Color.White, CircleShape)
-                            .border(1.5.dp, BrandIndigo, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Person, contentDescription = "Creator", tint = BrandIndigo, modifier = Modifier.size(24.dp))
-                    }
-                    
-                    // Connecting dotted gradient line
-                    Box(
-                        modifier = Modifier
-                            .width(60.dp)
-                            .height(2.dp)
-                            .background(BrandGradient)
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .background(BrandGradient, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Verified, contentDescription = "Verified Seal", tint = Color.White, modifier = Modifier.size(24.dp))
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .width(60.dp)
-                            .height(2.dp)
-                            .background(BrandGradient)
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .background(Color.White, CircleShape)
-                            .border(1.5.dp, BrandPurple, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Handshake, contentDescription = "Brand Deal", tint = BrandPurple, modifier = Modifier.size(24.dp))
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Text("Trusted Profiles", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                    Text("Secure Escrow", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                    Text("Instant Deals", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                }
+                Text(
+                    text = "Skip",
+                    color = AppGray,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Professional Tagline header (Section 8)
-        Text(
-            text = "India's Professional Network for Creators",
-            style = MaterialTheme.typography.titleMedium,
-            color = BrandIndigo,
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            letterSpacing = 0.5.sp
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Build Your Creator Career.\nDiscover Opportunities.\nVerify Your Success.",
-            style = MaterialTheme.typography.headlineMedium,
-            color = TextPrimary,
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.ExtraBold,
-            lineHeight = 32.sp,
-            fontSize = 22.sp,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Premium Primary Active Button
-        Button(
-            onClick = { viewModel.navigateTo("opportunities") },
-            colors = ButtonDefaults.buttonColors(containerColor = BrandIndigo, contentColor = Color.White),
+        // Center section: Visual illustration Card
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp)
-                .testTag("get_started_button"),
-            shape = RoundedCornerShape(12.dp)
+                .weight(1f)
+                .padding(vertical = 32.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceNavy),
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, CardNavy)
         ) {
-            Text(
-                text = "Enter Creator Exchange",
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Feature Icon within a gorgeous glow background
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(ElectricCyan.copy(alpha = 0.15f), Color.Transparent)
+                            ),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(Color.White, CircleShape)
+                            .border(1.5.dp, ElectricCyan, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = currentStep.icon,
+                            contentDescription = currentStep.title,
+                            tint = ElectricCyan,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = currentStep.subtitle,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = NeonPurple,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    letterSpacing = 1.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = currentStep.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = currentStep.desc,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AppGray,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Premium Outlined Active Button
-        OutlinedButton(
-            onClick = {
-                viewModel.navigateTo("create")
-            },
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = BrandPurple),
-            border = BorderStroke(1.5.dp, BrandPurple),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-                .testTag("im_brand_button"),
-            shape = RoundedCornerShape(12.dp)
+        // Lower section: Pagination dots and active controls
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Post Campaign as Brand / Agency",
-                style = MaterialTheme.typography.titleMedium,
-                color = BrandPurple,
-                fontWeight = FontWeight.Bold
-            )
-        }
+            // Slider Dots Indicator
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                steps.forEachIndexed { index, _ ->
+                    Box(
+                        modifier = Modifier
+                            .size(if (index == step) 16.dp else 8.dp, 8.dp)
+                            .clip(CircleShape)
+                            .background(if (index == step) ElectricCyan else AppGray.copy(alpha = 0.4f))
+                    )
+                }
+            }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (step > 0) {
+                    OutlinedButton(
+                        onClick = { step-- },
+                        border = BorderStroke(1.5.dp, CardNavy),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp)
+                    ) {
+                        Text(
+                            text = "Back",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        if (step < steps.size - 1) {
+                            step++
+                        } else {
+                            viewModel.setOnboardingSeen()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .weight(if (step > 0) 1.5f else 1f)
+                        .height(54.dp)
+                        .testTag("get_started_button")
+                ) {
+                    Text(
+                        text = if (step == steps.size - 1) "Get Started" else "Next",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -464,7 +556,7 @@ fun OpportunitiesFeedScreen(viewModel: CreatorHubViewModel) {
                     color = TextSecondary
                 )
             }
-            NotificationBellWithDot()
+            NotificationBellWithDot(onClick = { viewModel.navigateTo("notifications") })
         }
 
         // Search Bar Area
@@ -573,13 +665,14 @@ fun OpportunitiesFeedScreen(viewModel: CreatorHubViewModel) {
 }
 
 @Composable
-fun NotificationBellWithDot() {
+fun NotificationBellWithDot(onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(44.dp)
             .background(SurfaceNavy, CircleShape)
-            .clickable { /* action */ }
-            .padding(10.dp),
+            .clickable { onClick() }
+            .padding(10.dp)
+            .testTag("notification_bell"),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -1363,6 +1456,7 @@ fun OpportunityDetailScreen(viewModel: CreatorHubViewModel) {
 fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     var isEditing by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
 
     var editName by remember(profile) { mutableStateOf(profile?.name ?: "Ankit Photographer") }
     var editHandle by remember(profile) { mutableStateOf(profile?.handle ?: "@ankitclicks") }
@@ -1371,6 +1465,15 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
     var editInsta by remember(profile) { mutableStateOf(profile?.instagramFollowers ?: "125K") }
     var editYt by remember(profile) { mutableStateOf(profile?.youtubeSubscribers ?: "92K") }
     var editTwitter by remember(profile) { mutableStateOf(profile?.twitterFollowers ?: "14K") }
+    
+    // Custom profile sprint fields
+    var editPhotoUrl by remember(profile) { mutableStateOf(profile?.profilePhoto ?: "") }
+    var editInstagramUrl by remember(profile) { mutableStateOf(profile?.instagramUrl ?: "https://instagram.com/ankitclicks") }
+    var editYoutubeUrl by remember(profile) { mutableStateOf(profile?.youtubeUrl ?: "https://youtube.com/c/ankitvlogs") }
+    var editWebsite by remember(profile) { mutableStateOf(profile?.website ?: "https://ankitclicks.com") }
+    var editCategories by remember(profile) { mutableStateOf(profile?.categories ?: "Photography, Travel, Videography") }
+    var editFollowers by remember(profile) { mutableStateOf(profile?.followers ?: "231K") }
+    var editPortfolioLinks by remember(profile) { mutableStateOf(profile?.portfolioLinks ?: "https://behance.net/ankitclicks, https://unsplash.com/@ankitclicks") }
 
     Column(
         modifier = Modifier
@@ -1409,7 +1512,14 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
                                 bio = editBio,
                                 instagramFollowers = editInsta,
                                 youtubeSubscribers = editYt,
-                                twitterFollowers = editTwitter
+                                twitterFollowers = editTwitter,
+                                profilePhoto = editPhotoUrl,
+                                instagramUrl = editInstagramUrl,
+                                youtubeUrl = editYoutubeUrl,
+                                website = editWebsite,
+                                categories = editCategories,
+                                followers = editFollowers,
+                                portfolioLinks = editPortfolioLinks
                             )
                             viewModel.updateUserProfile(updated)
                             isEditing = false
@@ -1558,6 +1668,107 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
                     )
                 }
 
+                Text(
+                    text = "Professional Portal Links & Verification",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = editPhotoUrl,
+                    onValueChange = { editPhotoUrl = it },
+                    label = { Text("Profile Photo URL", color = ElectricCyan) },
+                    placeholder = { Text("https://example.com/photo.jpg", color = AppGray) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = NeonPurple
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_profile_photo")
+                )
+
+                OutlinedTextField(
+                    value = editInstagramUrl,
+                    onValueChange = { editInstagramUrl = it },
+                    label = { Text("Instagram URL", color = ElectricCyan) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = NeonPurple
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_profile_instagram_url")
+                )
+
+                OutlinedTextField(
+                    value = editYoutubeUrl,
+                    onValueChange = { editYoutubeUrl = it },
+                    label = { Text("YouTube URL", color = ElectricCyan) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = NeonPurple
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_profile_youtube_url")
+                )
+
+                OutlinedTextField(
+                    value = editWebsite,
+                    onValueChange = { editWebsite = it },
+                    label = { Text("Personal Website", color = ElectricCyan) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = NeonPurple
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_profile_website")
+                )
+
+                OutlinedTextField(
+                    value = editCategories,
+                    onValueChange = { editCategories = it },
+                    label = { Text("Creator Categories (comma split)", color = ElectricCyan) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = NeonPurple
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_profile_categories")
+                )
+
+                OutlinedTextField(
+                    value = editFollowers,
+                    onValueChange = { editFollowers = it },
+                    label = { Text("Aggregate Followers count (e.g. 250K)", color = ElectricCyan) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = NeonPurple
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_profile_followers_count")
+                )
+
+                OutlinedTextField(
+                    value = editPortfolioLinks,
+                    onValueChange = { editPortfolioLinks = it },
+                    label = { Text("Portfolio Showcase Links (comma split)", color = ElectricCyan) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = NeonPurple
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("edit_profile_portfolio_links"),
+                    singleLine = false,
+                    maxLines = 3
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
@@ -1569,7 +1780,14 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
                             bio = editBio,
                             instagramFollowers = editInsta,
                             youtubeSubscribers = editYt,
-                            twitterFollowers = editTwitter
+                            twitterFollowers = editTwitter,
+                            profilePhoto = editPhotoUrl,
+                            instagramUrl = editInstagramUrl,
+                            youtubeUrl = editYoutubeUrl,
+                            website = editWebsite,
+                            categories = editCategories,
+                            followers = editFollowers,
+                            portfolioLinks = editPortfolioLinks
                         )
                         viewModel.updateUserProfile(updated)
                         isEditing = false
@@ -1611,14 +1829,26 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
                                         .border(2.5.dp, BrandIndigo, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Image(
-                                        painter = painterResource(id = R.drawable.img_creator_avatar),
-                                        contentDescription = "Creator profile picture",
-                                        modifier = Modifier
-                                            .size(72.dp)
-                                            .clip(CircleShape),
-                                        contentScale = ContentScale.Crop
-                                    )
+                                    if (editPhotoUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = editPhotoUrl,
+                                            contentDescription = "Creator profile picture",
+                                            modifier = Modifier
+                                                .size(72.dp)
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop,
+                                            error = painterResource(id = R.drawable.img_creator_avatar)
+                                        )
+                                    } else {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.img_creator_avatar),
+                                            contentDescription = "Creator profile picture",
+                                            modifier = Modifier
+                                                .size(72.dp)
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.width(16.dp))
@@ -1645,20 +1875,25 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
                                         color = TextSecondary,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium
-                                    )
+                                      )
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = BrandIndigo.copy(alpha = 0.1f)
-                                        ) {
-                                            Text(
-                                                "Travel Cinema",
-                                                color = BrandIndigo,
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            )
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    ) {
+                                        editCategories.split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(3).forEach { cat ->
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = BrandIndigo.copy(alpha = 0.1f)
+                                            ) {
+                                                Text(
+                                                    cat,
+                                                    color = BrandPurple,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                )
+                                            }
                                         }
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
@@ -1680,7 +1915,7 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
                             HorizontalDivider(color = CardNavy.copy(alpha = 0.6f))
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            // Social Media Links (Goal 4)
+                            // Social Media Links (Goal 4 & Click action #5)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1688,9 +1923,21 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
                             ) {
                                 Text("Quick Handles", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = TextSecondary)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    SingleSocialLink(name = "Instagram", handle = editInsta, color = Color(0xFFE1306C))
-                                    SingleSocialLink(name = "YouTube", handle = editYt, color = Color(0xFFFF0000))
-                                    SingleSocialLink(name = "Twitter", handle = editTwitter, color = Color(0xFF1DA1F2))
+                                    SingleSocialLink(name = "Instagram", handle = editFollowers.takeIf { it.isNotBlank() } ?: editInsta, color = Color(0xFFE1306C), onClick = {
+                                        if (editInstagramUrl.isNotBlank()) {
+                                            try { uriHandler.openUri(editInstagramUrl) } catch (e: Exception) { e.printStackTrace() }
+                                        }
+                                    })
+                                    SingleSocialLink(name = "YouTube", handle = editYt, color = Color(0xFFFF0000), onClick = {
+                                        if (editYoutubeUrl.isNotBlank()) {
+                                            try { uriHandler.openUri(editYoutubeUrl) } catch (e: Exception) { e.printStackTrace() }
+                                        }
+                                    })
+                                    SingleSocialLink(name = "Web", handle = "Website", color = BrandIndigo, onClick = {
+                                        if (editWebsite.isNotBlank()) {
+                                            try { uriHandler.openUri(editWebsite) } catch (e: Exception) { e.printStackTrace() }
+                                        }
+                                    })
                                 }
                             }
                         }
@@ -1859,6 +2106,72 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
                     }
                 }
 
+                // Portfolio Showcase Section (Sprint requirement #3)
+                item {
+                    Column {
+                        Text(
+                            "Verified Portfolio Showcases",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (editPortfolioLinks.isNotBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                editPortfolioLinks.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach { link ->
+                                    val domain = link.substringAfter("://").substringBefore("/")
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = CosmicNavy,
+                                        border = BorderStroke(1.dp, CardNavy),
+                                        modifier = Modifier.clickable {
+                                            try {
+                                                val targetUri = if (!link.startsWith("http://") && !link.startsWith("https://")) {
+                                                    "https://$link"
+                                                } else {
+                                                    link
+                                                }
+                                                uriHandler.openUri(targetUri)
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
+                                        }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Launch,
+                                                contentDescription = "Portfolio Link",
+                                                tint = BrandIndigo,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = domain.ifEmpty { "Portfolio" },
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = BrandIndigo
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(
+                                "No verified portfolios linked yet. Tab edit profile to showcase your best creations.",
+                                color = AppGray,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+
                 // Past Campaigns Metrics Board (Goal 4 - Campaign results)
                 item {
                     Column {
@@ -1934,12 +2247,12 @@ fun CreatorProfileScreen(viewModel: CreatorHubViewModel) {
 }
 
 @Composable
-fun SingleSocialLink(name: String, handle: String, color: Color) {
+fun SingleSocialLink(name: String, handle: String, color: Color, onClick: (() -> Unit)? = null) {
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = SurfaceNavy,
         border = BorderStroke(0.5.dp, CardNavy),
-        modifier = Modifier.clickable { /* Handle Nav */ }
+        modifier = Modifier.clickable(enabled = onClick != null) { onClick?.invoke() }
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -2978,6 +3291,7 @@ data class LeaderboardItem(
 fun LoginScreen(viewModel: CreatorHubViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var inputRole by remember { mutableStateOf("creator") } // "creator" or "brand"
     val authError by viewModel.authError.collectAsStateWithLifecycle()
     val authLoading by viewModel.authLoading.collectAsStateWithLifecycle()
 
@@ -2990,11 +3304,12 @@ fun LoginScreen(viewModel: CreatorHubViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(DarkNavy)
-            .padding(24.dp),
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Spacer(modifier = Modifier.weight(0.2f))
+        Spacer(modifier = Modifier.height(40.dp))
 
         CreatorHubLogo(
             iconSize = 64.dp,
@@ -3012,7 +3327,51 @@ fun LoginScreen(viewModel: CreatorHubViewModel) {
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Role Toggles Tab Card
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(SurfaceNavy, RoundedCornerShape(14.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (inputRole == "creator") ElectricCyan else Color.Transparent)
+                    .clickable { inputRole = "creator" }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "As Creator",
+                    color = if (inputRole == "creator") Color.White else AppGray,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (inputRole == "brand") ElectricCyan else Color.Transparent)
+                    .clickable { inputRole = "brand" }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "As Brand",
+                    color = if (inputRole == "brand") Color.White else AppGray,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -3027,9 +3386,9 @@ fun LoginScreen(viewModel: CreatorHubViewModel) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Sign In",
+                    text = if (inputRole == "creator") "Creator Sign In" else "Brand Sign In",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = TextPrimary
                 )
 
@@ -3087,13 +3446,13 @@ fun LoginScreen(viewModel: CreatorHubViewModel) {
 
                 if (authLoading) {
                     CircularProgressIndicator(
-                        color = BrandIndigo,
+                        color = ElectricCyan,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
                 } else {
                     Button(
-                        onClick = { viewModel.login(email, password) },
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandIndigo),
+                        onClick = { viewModel.login(email, password, inputRole) },
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -3115,18 +3474,18 @@ fun LoginScreen(viewModel: CreatorHubViewModel) {
             Text("New to CreatorHub?", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.width(4.dp))
             TextButton(
-                onClick = { viewModel.navigateTo("signup") }
+                onClick = { viewModel.navigateTo("welcome") }
             ) {
                 Text(
                     "Sign Up",
-                    color = BrandIndigo,
+                    color = ElectricCyan,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
 
-        Spacer(modifier = Modifier.weight(0.3f))
+        Spacer(modifier = Modifier.height(40.dp))
     }
 }
 
@@ -3395,5 +3754,1346 @@ fun ForgotPasswordScreen(viewModel: CreatorHubViewModel) {
         }
 
         Spacer(modifier = Modifier.weight(0.3f))
+    }
+}
+
+// --- SCREEN: NOTIFICATION CENTER SCREEN ---
+@Composable
+fun NotificationCenterScreen(viewModel: CreatorHubViewModel) {
+    val notificationList by viewModel.notifications.collectAsStateWithLifecycle()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkNavy)
+            .padding(16.dp)
+    ) {
+        // Top Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = { viewModel.navigateTo("opportunities") },
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(SurfaceNavy, CircleShape)
+                    .testTag("notification_back_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = BrandIndigo
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Notification Center",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = BrandIndigo,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = "Sync milestones and contract escrow events",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppGray
+                )
+            }
+            if (notificationList.isNotEmpty()) {
+                IconButton(
+                    onClick = { viewModel.notifications.value = emptyList() },
+                    modifier = Modifier.testTag("clear_notifications_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Clear All",
+                        tint = CoralRed,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+
+        HorizontalDivider(color = CardNavy.copy(alpha = 0.5f))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (notificationList.isEmpty()) {
+            // Empty State
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "No Notifications",
+                        tint = AppGray,
+                        modifier = Modifier.size(72.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Your Hub is up to date!",
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "No new contract alerts or deal milestone announcements.",
+                        color = AppGray,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(notificationList) { item ->
+                    val (icon, tint) = when (item.type) {
+                        "deal" -> Pair(Icons.Default.AccountBalanceWallet, NeonPurple)
+                        "campaign" -> Pair(Icons.Default.Campaign, ElectricCyan)
+                        "profile" -> Pair(Icons.Default.Person, LightSageGlow)
+                        "system" -> Pair(Icons.Default.Info, BrandIndigo)
+                        else -> Pair(Icons.Default.Notifications, ElectricCyan)
+                    }
+
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, CardNavy),
+                        modifier = Modifier.fillMaxWidth().testTag("notification_item_${item.id}")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(tint.copy(alpha = 0.1f), CircleShape)
+                                    .border(1.dp, tint.copy(alpha = 0.3f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = item.type,
+                                    tint = tint,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = item.title,
+                                        color = TextPrimary,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = item.timestamp,
+                                        color = AppGray,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = item.body,
+                                    color = AppGray,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// ROLE REDESIGN: DUAL-SIDED ACCESS INTERFACES
+// ==========================================
+
+@Composable
+fun WelcomeScreen(viewModel: CreatorHubViewModel) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkNavy)
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Spacer(modifier = Modifier.height(24.dp))
+        CreatorHubLogo(iconSize = 56.dp, fontSize = 28.sp, showWordmark = true)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Welcome to CreatorHub",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.ExtraBold,
+            color = TextPrimary
+        )
+        Text(
+            text = "Choose your role to customize your specialized journey",
+            style = MaterialTheme.typography.bodyMedium,
+            color = AppGray,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        // Creator Selector Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { viewModel.navigateTo("signup_creator") }
+                .testTag("continue_as_creator_card"),
+            colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.5.dp, ElectricCyan.copy(alpha = 0.5f))
+        ) {
+            Row(
+                modifier = Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .background(ElectricCyan.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Person, contentDescription = "Creator Icon", tint = ElectricCyan, modifier = Modifier.size(28.dp))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "Continue as Creator",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Access deals, collaborate on briefs, and secure escrow earnings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppGray
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Brand Selector Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { viewModel.navigateTo("signup_brand") }
+                .testTag("continue_as_brand_card"),
+            colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.5.dp, NeonPurple.copy(alpha = 0.5f))
+        ) {
+            Row(
+                modifier = Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .background(NeonPurple.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Business, contentDescription = "Brand Icon", tint = NeonPurple, modifier = Modifier.size(28.dp))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "Continue as Brand / Partner",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Post campaign briefs, direct escrow milestones, and screen top-tier creator applicants.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppGray
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Already registered?", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.width(4.dp))
+            TextButton(
+                onClick = { viewModel.navigateTo("login") }
+            ) {
+                Text(
+                     "Sign In",
+                     color = ElectricCyan,
+                     fontWeight = FontWeight.Bold,
+                     style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SignupCreatorScreen(viewModel: CreatorHubViewModel) {
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var instagram by remember { mutableStateOf("") }
+    var youtube by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Travel") }
+    
+    val authError by viewModel.authError.collectAsStateWithLifecycle()
+    val authLoading by viewModel.authLoading.collectAsStateWithLifecycle()
+
+    val categories = listOf("Travel", "Tech & Gadgets", "Fashion & Lifestyle", "Finance", "Gaming")
+
+    DisposableEffect(Unit) {
+        viewModel.clearAuthError()
+        onDispose {}
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkNavy)
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            IconButton(onClick = { viewModel.navigateTo("welcome") }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+            }
+        }
+
+        CreatorHubLogo(iconSize = 48.dp, fontSize = 24.sp, showWordmark = true)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Creator Signup", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, CardNavy)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Display Name") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_creator_name")
+                )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email Address") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_creator_email")
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password (Min 6 chars)") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_creator_password")
+                )
+                OutlinedTextField(
+                    value = instagram,
+                    onValueChange = { instagram = it },
+                    label = { Text("Instagram Follower Count") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_creator_instagram")
+                )
+                OutlinedTextField(
+                    value = youtube,
+                    onValueChange = { youtube = it },
+                    label = { Text("Youtube Subscriber Count") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricCyan,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_creator_youtube")
+                )
+
+                Text("Primary Category", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(categories) { cat ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (category == cat) ElectricCyan else SurfaceNavy)
+                                .clickable { category = cat }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(cat, color = if (category == cat) Color.White else AppGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                if (authError != null) {
+                    Text(authError ?: "", color = CoralRed, style = MaterialTheme.typography.bodySmall)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (authLoading) {
+                    CircularProgressIndicator(color = ElectricCyan, modifier = Modifier.align(Alignment.CenterHorizontally))
+                } else {
+                    Button(
+                        onClick = { viewModel.signupCreator(name, email, password, instagram, youtube, category) },
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("signup_creator_submit")
+                    ) {
+                        Text("Complete Creator Registration", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+fun SignupBrandScreen(viewModel: CreatorHubViewModel) {
+    var companyName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var website by remember { mutableStateOf("") }
+    var industry by remember { mutableStateOf("SaaS") }
+
+    val authError by viewModel.authError.collectAsStateWithLifecycle()
+    val authLoading by viewModel.authLoading.collectAsStateWithLifecycle()
+
+    val industries = listOf("SaaS", "E-Commerce", "Finance", "Lifestyle", "EdTech")
+
+    DisposableEffect(Unit) {
+        viewModel.clearAuthError()
+        onDispose {}
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkNavy)
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            IconButton(onClick = { viewModel.navigateTo("welcome") }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+            }
+        }
+
+        CreatorHubLogo(iconSize = 48.dp, fontSize = 24.sp, showWordmark = true)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Brand / Agency Signup", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, CardNavy)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = companyName,
+                    onValueChange = { companyName = it },
+                    label = { Text("Company Name") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = NeonPurple,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_brand_name")
+                )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Company Email Address") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = NeonPurple,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_brand_email")
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password (Min 6 chars)") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = NeonPurple,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_brand_password")
+                )
+                OutlinedTextField(
+                    value = website,
+                    onValueChange = { website = it },
+                    label = { Text("Website (e.g. jio.co)") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = NeonPurple,
+                        unfocusedBorderColor = AppGray
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("signup_brand_website")
+                )
+
+                Text("Primary Industry", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(industries) { ind ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (industry == ind) NeonPurple else SurfaceNavy)
+                                .clickable { industry = ind }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(ind, color = if (industry == ind) Color.White else AppGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                if (authError != null) {
+                    Text(authError ?: "", color = CoralRed, style = MaterialTheme.typography.bodySmall)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (authLoading) {
+                    CircularProgressIndicator(color = NeonPurple, modifier = Modifier.align(Alignment.CenterHorizontally))
+                } else {
+                    Button(
+                        onClick = { viewModel.signupBrand(companyName, email, password, website, industry) },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp).testTag("signup_brand_submit")
+                    ) {
+                        Text("Complete Brand Registration", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+fun CampaignManagementScreen(viewModel: CreatorHubViewModel) {
+    val allOpportunities by viewModel.allOpportunities.collectAsStateWithLifecycle()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    val brandName = userProfile?.name ?: "Reliance Jio"
+    val myCampaigns = allOpportunities.filter { it.brandName.equals(brandName, ignoreCase = true) }
+
+    // Dialog form state
+    var title by remember { mutableStateOf("") }
+    var budgetRange by remember { mutableStateOf("₹25,000 - ₹50,000") }
+    var platform by remember { mutableStateOf("Instagram") }
+    var type by remember { mutableStateOf("Brand Deal") }
+    var requirements by remember { mutableStateOf("At least 15,000 active followers and premium visual aesthetics.") }
+    var aboutCampaign by remember { mutableStateOf("Promoting our new summer SaaS and mobile utility platform.") }
+
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = ElectricCyan,
+                contentColor = Color.White,
+                modifier = Modifier.testTag("fab_post_campaign")
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Campaign")
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DarkNavy)
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Campaign Console",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = TextPrimary
+            )
+            Text(
+                text = "Welcome back, $brandName! Manage briefs, escrow states, and campaigns.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppGray
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // KPI Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+                    border = BorderStroke(1.dp, CardNavy)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Active Campaigns", style = MaterialTheme.typography.labelSmall, color = AppGray)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("${myCampaigns.size}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = ElectricCyan)
+                    }
+                }
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+                    border = BorderStroke(1.dp, CardNavy)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Total Budget", style = MaterialTheme.typography.labelSmall, color = AppGray)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("₹3,50,000", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = NeonPurple)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text("My Active Briefs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (myCampaigns.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceNavy),
+                    border = BorderStroke(1.dp, CardNavy)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.Campaign, contentDescription = "Empty", tint = AppGray, modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("No active briefs posted yet", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Text("Click the + FAB to post your first campaign deal to our elite creator pool.", style = MaterialTheme.typography.bodySmall, color = AppGray, textAlign = TextAlign.Center)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(myCampaigns) { cam ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.selectOpportunity(cam.id)
+                                    viewModel.navigateTo("details")
+                                },
+                            colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+                            border = BorderStroke(1.dp, CardNavy)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(ElectricCyan.copy(alpha = 0.1f))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(cam.type, color = ElectricCyan, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    }
+                                    Text("5 Applications", style = MaterialTheme.typography.labelSmall, color = NeonPurple, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(cam.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(cam.budgetRange, style = MaterialTheme.typography.bodySmall, color = AppGray, fontWeight = FontWeight.SemiBold)
+                                    Text("•", color = AppGray)
+                                    Text(cam.platform, style = MaterialTheme.typography.bodySmall, color = AppGray, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showAddDialog) {
+            AlertDialog(
+                onDismissRequest = { showAddDialog = false },
+                title = { Text("Post Campaign Brief", fontWeight = FontWeight.ExtraBold, color = TextPrimary) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = title,
+                            onValueChange = { title = it },
+                            label = { Text("Campaign Title") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = budgetRange,
+                            onValueChange = { budgetRange = it },
+                            label = { Text("Budget Range") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = platform,
+                            onValueChange = { platform = it },
+                            label = { Text("Platform (e.g. YouTube, Instagram)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = type,
+                            onValueChange = { type = it },
+                            label = { Text("Opportunity Type (e.g. Brand Deal)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = requirements,
+                            onValueChange = { requirements = it },
+                            label = { Text("Requirements Summary") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = aboutCampaign,
+                            onValueChange = { aboutCampaign = it },
+                            label = { Text("About Campaign description") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (title.isNotBlank()) {
+                                viewModel.createCustomOpportunity(
+                                    title = title,
+                                    brandName = brandName,
+                                    budgetRange = budgetRange,
+                                    type = type,
+                                    platform = platform,
+                                    requirements = requirements,
+                                    aboutCampaign = aboutCampaign
+                                )
+                                showAddDialog = false
+                                title = ""
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan)
+                    ) {
+                        Text("Post Publicly", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAddDialog = false }) {
+                        Text("Cancel", color = AppGray)
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun ApplicantManagementScreen(viewModel: CreatorHubViewModel) {
+    var acceptedIds by remember { mutableStateOf(setOf<Int>()) }
+    var declinedIds by remember { mutableStateOf(setOf<Int>()) }
+
+    val applicants = listOf(
+        MockApplicant(1, "Rohan Sharma", "Gadget Reviewer", "YouTube", "240k Subscribers", "Trust Rating: 98%", "₹40,000"),
+        MockApplicant(2, "Sunita Sen", "Travel Filmmaker", "Instagram", "89k Followers", "Trust Rating: 96%", "₹35,000"),
+        MockApplicant(3, "Priya Mehra", "Fashion Innovator", "Instagram", "150k Followers", "Trust Rating: 94%", "₹38,000"),
+        MockApplicant(4, "Karan Malhotra", "Finance Educator", "YouTube", "120k Subscribers", "Trust Rating: 97%", "₹45,000")
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkNavy)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Applicant Pipeline",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = TextPrimary
+        )
+        Text(
+            text = "Review incoming influencer applications, verify their network metrics, and secure escrow contracts.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = AppGray
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(applicants) { applicant ->
+                val isAccepted = acceptedIds.contains(applicant.id)
+                val isDeclined = declinedIds.contains(applicant.id)
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+                    border = BorderStroke(1.dp, CardNavy)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(ElectricCyan.copy(alpha = 0.1f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Person, contentDescription = null, tint = ElectricCyan)
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(applicant.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                    Text(applicant.category, style = MaterialTheme.typography.labelMedium, color = AppGray)
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceNavy)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(applicant.trustScore, color = NeonPurple, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Platform Metrics", style = MaterialTheme.typography.labelSmall, color = AppGray)
+                                Text("${applicant.platform}: ${applicant.metrics}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Proposed Budget", style = MaterialTheme.typography.labelSmall, color = AppGray)
+                                Text(applicant.proposedBudget, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = ElectricCyan)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (isAccepted) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFDCFCE7), RoundedCornerShape(8.dp))
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("✓ Application Approved. Escrow Secured!", color = Color(0xFF15803D), fontWeight = FontWeight.Bold)
+                            }
+                        } else if (isDeclined) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFFEE2E2), RoundedCornerShape(8.dp))
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Application Declined", color = Color(0xFFB91C1C), fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { declinedIds = declinedIds + applicant.id },
+                                    border = BorderStroke(1.dp, CardNavy),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Decline", color = CoralRed, fontWeight = FontWeight.Bold)
+                                }
+
+                                Button(
+                                    onClick = { acceptedIds = acceptedIds + applicant.id },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Approve & Escrow", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class MockApplicant(
+    val id: Int,
+    val name: String,
+    val category: String,
+    val platform: String,
+    val metrics: String,
+    val trustScore: String,
+    val proposedBudget: String
+)
+
+@Composable
+fun CreatorDiscoveryScreen(viewModel: CreatorHubViewModel) {
+    var searchVal by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("All") }
+    var offeredId by remember { mutableStateOf<Int?>(null) }
+
+    val categories = listOf("All", "Tech", "Travel", "Lifestyle", "Finance")
+
+    val creators = listOf(
+        MockCreator(1, "Rohan Sharma", "Tech", "YouTube", "240k Sub", "Trust: 98%", "₹40,000/vid"),
+        MockCreator(2, "Sunita Sen", "Travel", "Instagram", "89k Follow", "Trust: 96%", "₹35,000/post"),
+        MockCreator(3, "Priya Mehra", "Lifestyle", "Instagram", "150k Follow", "Trust: 94%", "₹38,000/post"),
+        MockCreator(4, "Karan Malhotra", "Finance", "YouTube", "120k Sub", "Trust: 97%", "₹45,000/vid")
+    )
+
+    val filteredCreators = creators.filter {
+        (selectedCategory == "All" || it.category.equals(selectedCategory, ignoreCase = true)) &&
+        it.name.contains(searchVal, ignoreCase = true)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkNavy)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Creator Directory",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = TextPrimary
+        )
+        Text(
+            text = "Search and filters of verified content creators across multiple niches.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = AppGray
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Search text field
+        OutlinedTextField(
+            value = searchVal,
+            onValueChange = { searchVal = it },
+            label = { Text("Search by name / niche...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                focusedBorderColor = ElectricCyan,
+                unfocusedBorderColor = AppGray
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Filter chips row
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(categories) { cat ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selectedCategory == cat) ElectricCyan else SurfaceNavy)
+                        .clickable { selectedCategory = cat }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(cat, color = if (selectedCategory == cat) Color.White else AppGray, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(filteredCreators) { creator ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+                    border = BorderStroke(1.dp, CardNavy)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(ElectricCyan.copy(alpha = 0.1f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Verified, contentDescription = null, tint = ElectricCyan)
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(creator.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                    Text("${creator.category} • ${creator.platform}", style = MaterialTheme.typography.labelSmall, color = AppGray, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(creator.trust, color = NeonPurple, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold)
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Network: ${creator.metrics}", style = MaterialTheme.typography.bodySmall, color = AppGray)
+                            Text(creator.baseRate, style = MaterialTheme.typography.bodySmall, color = ElectricCyan, fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (offeredId == creator.id) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFECFDF5), RoundedCornerShape(8.dp))
+                                    .padding(10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("✓ Direct Offer Sent!", color = Color(0xFF059669), fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Button(
+                                onClick = { offeredId = creator.id },
+                                colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth().height(42.dp)
+                            ) {
+                                Text("Send Brand Offer", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class MockCreator(
+    val id: Int,
+    val name: String,
+    val category: String,
+    val platform: String,
+    val metrics: String,
+    val trust: String,
+    val baseRate: String
+)
+
+@Composable
+fun BrandProfileScreen(viewModel: CreatorHubViewModel) {
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    var isEditMode by remember { mutableStateOf(false) }
+
+    // local edit controller
+    var companyName by remember { mutableStateOf(userProfile?.name ?: "Reliance Jio") }
+    var industry by remember { mutableStateOf(userProfile?.industry ?: "Telecom / SaaS") }
+    var website by remember { mutableStateOf(userProfile?.website ?: "jio.com") }
+    var bio by remember { mutableStateOf(userProfile?.bio ?: "We connect India. Looking for outstanding digital creators to lead premium 5G reviews and SaaS lifestyle videos.") }
+    var location by remember { mutableStateOf(userProfile?.location ?: "Mumbai, MH") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkNavy)
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // Brand Header Panel
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+            border = BorderStroke(1.dp, CardNavy)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(NeonPurple.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Business, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(44.dp))
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = if (isEditMode) "Edit Brand Profile" else companyName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "$industry • $location",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppGray
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = CosmicNavy),
+            border = BorderStroke(1.dp, CardNavy)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Verification Info", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+
+                if (isEditMode) {
+                    OutlinedTextField(
+                        value = companyName,
+                        onValueChange = { companyName = it },
+                        label = { Text("Company Name") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = ElectricCyan,
+                            unfocusedBorderColor = AppGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = industry,
+                        onValueChange = { industry = it },
+                        label = { Text("Industry") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = ElectricCyan,
+                            unfocusedBorderColor = AppGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = website,
+                        onValueChange = { website = it },
+                        label = { Text("Website") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = ElectricCyan,
+                            unfocusedBorderColor = AppGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = location,
+                        onValueChange = { location = it },
+                        label = { Text("Location") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = ElectricCyan,
+                            unfocusedBorderColor = AppGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = bio,
+                        onValueChange = { bio = it },
+                        label = { Text("Bio / Description") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = ElectricCyan,
+                            unfocusedBorderColor = AppGray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Button(
+                        onClick = {
+                            val nextProfile = (userProfile ?: UserProfile(uid = "local_demo_uid", email = "brand@brand.com")).copy(
+                                name = companyName,
+                                industry = industry,
+                                website = website,
+                                bio = bio,
+                                location = location,
+                                role = "brand"
+                            )
+                            viewModel.userProfile.value = nextProfile
+                            viewModel.saveProfileLocally(nextProfile)
+                            isEditMode = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Save Profile Changes", color = Color.White)
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Corporate Website", style = MaterialTheme.typography.bodyMedium, color = AppGray)
+                        Text(website, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = ElectricCyan)
+                    }
+                    HorizontalDivider(color = CardNavy)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Agency Bio", style = MaterialTheme.typography.bodyMedium, color = AppGray, fontWeight = FontWeight.Bold)
+                        Text(bio, style = MaterialTheme.typography.bodyMedium, color = TextPrimary, lineHeight = 20.sp)
+                    }
+                    HorizontalDivider(color = CardNavy)
+
+                    Button(
+                        onClick = { isEditMode = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = SurfaceNavy),
+                        border = BorderStroke(1.dp, CardNavy),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Edit Corporate Profile", color = TextPrimary, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Logout
+        Button(
+            onClick = {
+                viewModel.logout()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = CoralRed),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp).testTag("brand_profile_logout")
+        ) {
+            Text("Logout", color = Color.White, fontWeight = FontWeight.Bold)
+        }
     }
 }

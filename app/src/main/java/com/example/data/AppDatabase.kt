@@ -14,15 +14,18 @@ import kotlinx.coroutines.launch
         OpportunityEntity::class,
         ChatSessionEntity::class,
         MessageEntity::class,
-        DealEntity::class
+        DealEntity::class,
+        AffiliateOfferEntity::class,
+        AffiliateEarningEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun opportunityDao(): OpportunityDao
     abstract fun chatDao(): ChatDao
     abstract fun dealDao(): DealDao
+    abstract fun affiliateDao(): AffiliateDao
 
     companion object {
         @Volatile
@@ -240,6 +243,128 @@ abstract class AppDatabase : RoomDatabase() {
                     timestamp = System.currentTimeMillis() - 90000000
                 )
             )
+
+            // 4. Seed Affiliate Offers
+            val affDao = db.affiliateDao()
+            val offers = listOf(
+                AffiliateOfferEntity(
+                    id = 1,
+                    title = "Hostinger Creator Hosting Program",
+                    brandName = "Hostinger India",
+                    commissionRate = "Up to 60% per sale",
+                    productUrl = "https://www.hostinger.in/creator",
+                    category = "SaaS & Hosting",
+                    description = "Earn high commissions by introducing your audience to Hostinger's super-fast web hosting packages. Dynamic analytics, 30-day tracking cookie life, and monthly payouts.",
+                    payoutInfo = "Monthly via bank transfer, Min ₹2,000 threshold",
+                    isSaved = false,
+                    isApplied = true,
+                    affiliateLink = "https://hostinger.co/aff?ref=ankitclicks&campaign=hub"
+                ),
+                AffiliateOfferEntity(
+                    id = 2,
+                    title = "Canva Pro Referral Elite Partners",
+                    brandName = "Canva India",
+                    commissionRate = "₹750 per active Pro trial registration",
+                    productUrl = "https://www.canva.com/affiliates",
+                    category = "Design & Creative",
+                    description = "Provide exclusive trial licenses for Canva Pro. Get paid every time a creator transitions into an active premium graphic design suite profile using your referral.",
+                    payoutInfo = "Paid standard monthly on the 15th, Min ₹1,500 threshold",
+                    isSaved = true,
+                    isApplied = true,
+                    affiliateLink = "https://partner.canva.com/ankitclicks"
+                ),
+                AffiliateOfferEntity(
+                    id = 3,
+                    title = "Adobe Creative Cloud Promotion Affiliate",
+                    brandName = "Adobe Inc",
+                    commissionRate = "85% on first month subscription",
+                    productUrl = "https://www.adobe.com/affiliates",
+                    category = "Design & Creative",
+                    description = "Perfect alignment for visual creators. Earn massive commission payouts recommending Photoshop, Lightroom, Premiere Pro, or the full flagship Creative Suite bundle.",
+                    payoutInfo = "Processed net-30 bank payout, Min ₹4,500 threshold",
+                    isSaved = false,
+                    isApplied = false,
+                    affiliateLink = ""
+                ),
+                AffiliateOfferEntity(
+                    id = 4,
+                    title = "Semrush Growth SEO Mastery Program",
+                    brandName = "Semrush Tech",
+                    commissionRate = "₹15,000 bounty + Recurring on renewals",
+                    productUrl = "https://www.semrush.com/affiliate",
+                    category = "SaaS & Hosting",
+                    description = "Highly lucrative system for SEO coaches, agency founders, and tech content writers. Share the ultimate competitive intelligence and digital marketing audit suite.",
+                    payoutInfo = "Bi-weekly payments processed, Min ₹5,000 threshold",
+                    isSaved = false,
+                    isApplied = false,
+                    affiliateLink = ""
+                ),
+                AffiliateOfferEntity(
+                    id = 5,
+                    title = "Amazon Electronics Bounty System",
+                    brandName = "Amazon Associates",
+                    commissionRate = "Up to 10% on qualifying checkout baskets",
+                    productUrl = "https://affiliate-program.amazon.in",
+                    category = "E-commerce & Retail",
+                    description = "Deploy custom affiliate link parameters tracking camera equipment, professional ring lights, wireless microphone transmitters, storage chips, or laptops.",
+                    payoutInfo = "Net 60 days standard, Min ₹1,000 threshold",
+                    isSaved = false,
+                    isApplied = true,
+                    affiliateLink = "https://amzn.to/3Fk9Jqp"
+                ),
+                AffiliateOfferEntity(
+                    id = 6,
+                    title = "Skillshare Premium Coach Leads",
+                    brandName = "Skillshare Global",
+                    commissionRate = "₹450 flat per new student registry",
+                    productUrl = "https://www.skillshare.com/affiliates",
+                    category = "Education & Self-Care",
+                    description = "Lead your visual design, cinematography, or personal finance followers to professional tutorial classrooms. Over 30,000 premium learning streams available.",
+                    payoutInfo = "Monthly net-15, Min ₹1,500 threshold",
+                    isSaved = false,
+                    isApplied = false,
+                    affiliateLink = ""
+                )
+            )
+            affDao.insertAllOffers(offers)
+
+            // 5. Seed Affiliate Earnings
+            val initialEarnings = listOf(
+                AffiliateEarningEntity(
+                    offerId = 1,
+                    offerTitle = "Hostinger Creator Hosting Program",
+                    brandName = "Hostinger India",
+                    clicksCount = 184,
+                    conversionsCount = 8,
+                    totalSales = 24000.0,
+                    earningsAmount = 14400.0,
+                    status = "Approved",
+                    timestamp = System.currentTimeMillis() - 86400000 * 2
+                ),
+                AffiliateEarningEntity(
+                    offerId = 2,
+                    offerTitle = "Canva Pro Referral Elite Partners",
+                    brandName = "Canva India",
+                    clicksCount = 312,
+                    conversionsCount = 14,
+                    totalSales = 15000.0,
+                    earningsAmount = 10500.0,
+                    status = "Paid",
+                    timestamp = System.currentTimeMillis() - 86400000 * 10
+                ),
+                AffiliateEarningEntity(
+                    offerId = 5,
+                    offerTitle = "Amazon Electronics Bounty System",
+                    brandName = "Amazon Associates",
+                    clicksCount = 495,
+                    conversionsCount = 22,
+                    totalSales = 68000.0,
+                    earningsAmount = 6800.0,
+                    status = "Pending",
+                    timestamp = System.currentTimeMillis() - 86400000 * 1
+                )
+            )
+            affDao.insertAllEarnings(initialEarnings)
         }
     }
 }

@@ -15,5 +15,15 @@ data class UserProfile(
     val trustRating: Int = 98,
     val totalSecuredEarnings: String = "₹4,85,000",
     val heldInEscrow: String = "₹75,000",
-    val activeContractsCount: Int = 8
+    val activeContractsCount: Int = 8,
+    // Add sprint custom profile fields
+    val profilePhoto: String = "",
+    val instagramUrl: String = "https://instagram.com/ankitclicks",
+    val youtubeUrl: String = "https://youtube.com/c/ankitvlogs",
+    val website: String = "https://ankitclicks.com",
+    val categories: String = "Photography, Travel, Videography",
+    val followers: String = "231K",
+    val portfolioLinks: String = "",
+    val role: String = "creator", // "creator" or "brand"
+    val industry: String = "" // For Brand accounts
 )
