@@ -1,9 +1,26 @@
+import java.util.Base64
+import java.io.File
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
+  alias(libs.plugins.kotlin.serialization)
+}
+
+// Eagerly restore debug.keystore from debug.keystore.base64 if missing
+val eagerBase64File = file("${rootDir}/debug.keystore.base64")
+val eagerKeystoreFile = file("${rootDir}/debug.keystore")
+if (eagerBase64File.exists() && !eagerKeystoreFile.exists()) {
+  try {
+    val decodedBytes = Base64.getDecoder().decode(eagerBase64File.readText().trim())
+    eagerKeystoreFile.writeBytes(decodedBytes)
+    println("Successfully eagerly decoded debug.keystore from debug.keystore.base64")
+  } catch (e: Exception) {
+    System.err.println("Failed to eagerly decode debug.keystore: ${e.message}")
+  }
 }
 
 android {
@@ -102,6 +119,15 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
+  
+  // Supabase
+  implementation(libs.supabase.postgrest)
+  implementation(libs.supabase.gotrue)
+  implementation(libs.supabase.realtime)
+  implementation(libs.ktor.client.android)
+  implementation(libs.ktor.client.core)
+  implementation(libs.kotlinx.serialization.json)
+  
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
@@ -121,3 +147,4 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
